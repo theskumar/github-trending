@@ -88,56 +88,86 @@ def parse_markdown_file(file_path: Path, date: str) -> List[Tuple[str, str, str,
 
     try:
         with open(file_path, "r", encoding="utf-8") as f:
-            for line_num, line in enumerate(f, 1):
-                line = line.strip()
+            lines = f.readlines()
 
-                # Skip empty lines and date headers
-                if not line or line.startswith("## "):
-                    continue
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+            line_num = i + 1
 
-                # Check for language header (#### language)
-                language_match = re.match(r"^####\s+(.+)$", line)
-                if language_match:
-                    current_language = language_match.group(1).strip().lower()
-                    continue
+            # Skip empty lines and date headers
+            if not line or line.startswith("## "):
+                i += 1
+                continue
 
-                # Parse repository line
-                # Format: * [owner / repo](https://github.com/owner/repo):Description
-                # or: - [owner / repo](https://github.com/owner/repo):Description
-                repo_match = re.match(
-                    r"^[\*\-]\s+\[([^\]]+)\]\(https?://github\.com/[^\)]+\):(.*)$", line
-                )
+            # Check for language header (#### language)
+            language_match = re.match(r"^####\s+(.+)$", line)
+            if language_match:
+                current_language = language_match.group(1).strip().lower()
+                i += 1
+                continue
 
-                if repo_match:
-                    if current_language is None:
-                        print(
-                            f"Warning: {file_path}:{line_num} - Repository entry without language section, skipping",
-                            file=sys.stderr,
-                        )
-                        continue
+            # Parse repository line
+            # Format: * [owner / repo](https://github.com/owner/repo):Description
+            # or: - [owner / repo](https://github.com/owner/repo):Description
+            repo_match = re.match(
+                r"^[\*\-]\s+\[([^\]]+)\]\(https?://github\.com/[^\)]+\):(.*)$", line
+            )
 
-                    raw_slug = repo_match.group(1)
-                    description = repo_match.group(2).strip()
-
-                    # Normalize the repository slug
-                    repo_slug = normalize_repo_slug(raw_slug)
-
-                    # Validate repo slug format
-                    if "/" not in repo_slug:
-                        print(
-                            f"Warning: {file_path}:{line_num} - Invalid repo slug '{raw_slug}', skipping",
-                            file=sys.stderr,
-                        )
-                        continue
-
-                    repos.append((date, current_language, repo_slug, description))
-
-                elif line.startswith("*") or line.startswith("-"):
-                    # Line starts with * or - but doesn't match expected format
+            if repo_match:
+                if current_language is None:
                     print(
-                        f"Warning: {file_path}:{line_num} - Malformed repository entry, skipping: {line[:50]}...",
+                        f"Warning: {file_path}:{line_num} - Repository entry without language section, skipping",
                         file=sys.stderr,
                     )
+                    i += 1
+                    continue
+
+                raw_slug = repo_match.group(1)
+                description = repo_match.group(2).strip()
+
+                # Collect multi-line descriptions
+                # Continue reading lines that aren't new repo entries or headers
+                j = i + 1
+                while j < len(lines):
+                    next_line = lines[j].strip()
+                    # Stop if we hit an empty line or a header
+                    if not next_line or next_line.startswith("####"):
+                        break
+                    # Stop if we hit a new repository entry (bullet + [owner/repo](url):)
+                    if re.match(
+                        r"^[\*\-]\s+\[([^\]]+)\]\(https?://github\.com/", next_line
+                    ):
+                        break
+                    # This is a continuation line - append it
+                    description += " " + next_line
+                    j += 1
+
+                # Move the counter to the last processed line
+                i = j
+
+                # Normalize the repository slug
+                repo_slug = normalize_repo_slug(raw_slug)
+
+                # Validate repo slug format
+                if "/" not in repo_slug:
+                    print(
+                        f"Warning: {file_path}:{line_num} - Invalid repo slug '{raw_slug}', skipping",
+                        file=sys.stderr,
+                    )
+                    continue
+
+                repos.append((date, current_language, repo_slug, description.strip()))
+
+            elif line.startswith("*") or line.startswith("-"):
+                # Line starts with * or - but doesn't match expected format
+                print(
+                    f"Warning: {file_path}:{line_num} - Malformed repository entry, skipping: {line[:50]}...",
+                    file=sys.stderr,
+                )
+                i += 1
+            else:
+                i += 1
 
     except Exception as e:
         print(f"Error reading {file_path}: {e}", file=sys.stderr)
