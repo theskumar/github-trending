@@ -2,6 +2,21 @@
 
 A Python script that extracts GitHub trending repository data from markdown files and populates a SQLite database.
 
+## Quick Start
+
+```bash
+# 1. Extract data from markdown files
+python3 extract_trending.py --input ./2020 --output trending.db
+
+# 2. Query the data
+sqlite3 trending.db "SELECT repo_slug, COUNT(DISTINCT date) as days FROM trending_repos WHERE language='python' GROUP BY repo_slug ORDER BY days DESC LIMIT 10;"
+
+# 3. Run comprehensive analysis
+./example_analysis.sh trending.db
+```
+
+📖 **See [QUERIES.md](QUERIES.md) for ready-to-use SQL queries** to analyze trending patterns, top repositories, and more.
+
 ## Overview
 
 This script parses markdown files containing GitHub trending repositories and stores them in a structured SQLite database for easy querying and analysis.
@@ -66,12 +81,23 @@ The script expects markdown files with the following format:
 - [org / project](https://github.com/org/project):Project description
 ```
 
+**Multi-line descriptions** are also supported:
+
+```markdown
+- [owner / repo](https://github.com/owner/repo):Description starts here
+  🌍
+
+* And continues on additional lines!
+```
+
 ### Parsing Rules
 
 - **Date**: Extracted from filename (YYYY-MM-DD format)
 - **Language**: Extracted from `#### <language>` headers (converted to lowercase)
 - **Repository Slug**: Text inside `[...]` brackets, normalized to `owner/repo` format (spaces removed)
 - **Description**: Text after the `:` following the GitHub URL (can be empty)
+  - **Multi-line Support**: Descriptions can span multiple lines until the next repository entry or section header
+  - Continuation lines are joined with spaces
 - **Bullet Points**: Supports both `*` (asterisk) and `-` (dash) formats
 
 ## Database Schema
@@ -117,6 +143,7 @@ ORDER BY date DESC;
 ## Edge Cases Handled
 
 - ✅ Empty descriptions
+- ✅ Multi-line descriptions (continuation lines are joined)
 - ✅ Spaces in repository slugs (normalized to `owner/repo`)
 - ✅ Both `*` and `-` bullet point formats
 - ✅ Unicode characters and emojis in descriptions
@@ -152,6 +179,20 @@ Warning: 2024-01-15.md:15 - Invalid repo slug 'invalid-slug', skipping
 - Processes ~300,000+ repositories in seconds
 - Efficient batch inserts using `executemany()`
 - Minimal memory footprint (processes files one at a time)
+
+## Related Files
+
+- **[QUERIES.md](QUERIES.md)** - Comprehensive collection of SQL queries for data analysis
+  - Top repositories by language
+  - Trending patterns and streaks
+  - Cross-language analysis
+  - Export queries and more
+- **[example_analysis.sh](example_analysis.sh)** - Ready-to-run analysis script that generates:
+  - Top repositories by language
+  - Multi-language trending repos
+  - Language popularity statistics
+  - Consistency scores
+  - CSV exports
 
 ## License
 
