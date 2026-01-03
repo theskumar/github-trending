@@ -38,6 +38,21 @@ def create_database(db_path: str) -> sqlite3.Connection:
         )
     """)
 
+    # Create indexes for better query performance
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_language ON trending_repos(language)"
+    )
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_date ON trending_repos(date)")
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_repo_slug ON trending_repos(repo_slug)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_language_date ON trending_repos(language, date)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_repo_lang ON trending_repos(repo_slug, language)"
+    )
+
     conn.commit()
     return conn
 
