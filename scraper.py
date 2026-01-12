@@ -1,7 +1,6 @@
 # coding:utf-8
 
 import datetime
-import codecs
 import requests
 import os
 import time
@@ -34,12 +33,12 @@ def scrape(language, filename):
     url = 'https://github.com/trending/{language}'.format(language=language)
     r = requests.get(url, headers=HEADERS)
     assert r.status_code == 200
-    
+
     d = pq(r.content)
     items = d('div.Box article.Box-row')
 
     # codecs to solve the problem utf-8 codec like chinese
-    with codecs.open(filename, "a", "utf-8") as f:
+    with open(filename, "a", encoding="utf-8") as f:
         f.write('\n#### {language}\n'.format(language=language))
 
         for item in items:
