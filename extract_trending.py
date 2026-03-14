@@ -139,7 +139,9 @@ def parse_markdown_file(file_path: Path, date: str) -> List[Tuple[str, str, str,
                     continue
 
                 raw_slug = repo_match.group(1)
-                description = repo_match.group(2).strip()
+                description = re.sub(
+                    r'\s+\[(first time|seen \d+x)\]$', '', repo_match.group(2).strip()
+                )
 
                 # Collect multi-line descriptions
                 # Continue reading lines that aren't new repo entries or headers
